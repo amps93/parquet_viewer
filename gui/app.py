@@ -30,9 +30,18 @@ class ParquetViewerApp(QMainWindow):
         
         # Recent files settings
         self.settings = QSettings("Antigravity", "ParquetViewer")
-        self.recent_files: List[str] = self.settings.value("recent_files", []) or []
-        # Clean invalid recent files
-        self.recent_files = [f for f in self.recent_files if os.path.exists(f)]
+        raw_recent = self.settings.value("recent_files", []) or []
+        # Normalize and filter out non-existent files
+        self.recent_files = []
+        seen = set()
+        for f in raw_recent:
+            if os.path.exists(f):
+                norm = os.path.abspath(f).replace('\\', '/')
+                norm_lower = norm.lower()
+                if norm_lower not in seen:
+                    seen.add(norm_lower)
+                    self.recent_files.append(norm)
+        self.settings.setValue("recent_files", self.recent_files)
         
         # Theme configuration (persist last active theme)
         self.is_dark_mode = self.settings.value("is_dark_mode", True, type=bool)
@@ -48,7 +57,12 @@ class ParquetViewerApp(QMainWindow):
         
         # Set Window and Taskbar Icon
         from PySide6.QtGui import QIcon
-        icon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "parquet_icon.ico")
+        if getattr(sys, 'frozen', False):
+            base_dir = os.path.dirname(os.path.dirname(__file__))
+        else:
+            base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            
+        icon_path = os.path.join(base_dir, "parquet_icon.ico")
         if os.path.exists(icon_path):
             self.setWindowIcon(QIcon(icon_path))
         
@@ -101,7 +115,7 @@ class ParquetViewerApp(QMainWindow):
         
         # --- Main Splitter (Sidebar + Data Grid Pane) ---
         main_splitter = QSplitter(Qt.Orientation.Horizontal)
-        main_layout.addWidget(main_splitter)
+        main_layout.addWidget(main_splitter, 1)
         
         # 1. Sidebar Container
         sidebar = QWidget()
@@ -191,7 +205,7 @@ class ParquetViewerApp(QMainWindow):
         self.tbl_grid.setAlternatingRowColors(True)
         self.grid_model = PyArrowTableModel()
         self.tbl_grid.setModel(self.grid_model)
-        grid_layout.addWidget(self.tbl_grid)
+        grid_layout.addWidget(self.tbl_grid, 1)
         
         # Pagination & Actions Footer
         pagination_layout = QHBoxLayout()
@@ -270,13 +284,17 @@ class ParquetViewerApp(QMainWindow):
             self.load_parquet_file(file_path)
             
     def load_parquet_file(self, file_path: str):
+        import time
+        t0 = time.time()
         self.lbl_status_footer.setText(f"Loading {os.path.basename(file_path)}...")
         
         # Force UI update
         from PySide6.QtCore import QCoreApplication
         QCoreApplication.processEvents()
+        t1 = time.time()
         
         success, msg = self.loader.load_file(file_path)
+        t2 = time.time()
         
         if success:
             self.filtered_table = self.loader.table
@@ -288,13 +306,20 @@ class ParquetViewerApp(QMainWindow):
             # Setup columns for the fast filter
             self.cb_filter_col.clear()
             self.cb_filter_col.addItems(self.loader.table.column_names)
+            t3 = time.time()
             
             # Update UI Panels
             self.update_meta_sidebar()
+            t4 = time.time()
             self.update_grid_view(resize_columns=True)
+            t5 = time.time()
             
             self.btn_export_grid.setEnabled(True)
-            self.lbl_status_footer.setText(f"Successfully loaded parquet file with {self.loader.metadata['row_count']:,} rows.")
+            elapsed = time.time() - t0
+            self.lbl_status_footer.setText(
+                f"Successfully loaded parquet file with {self.loader.metadata['row_count']:,} rows. "
+                f"Total time: {elapsed:.3f}s (Disk read: {t2-t1:.3f}s, FilterSetup: {t3-t2:.3f}s, Meta: {t4-t3:.3f}s, UI Grid: {t5-t4:.3f}s)"
+            )
         else:
             QMessageBox.critical(self, "Load Error", f"Failed to open parquet file:\n{msg}")
             self.lbl_status_footer.setText(f"Load Error: {msg}")
@@ -362,7 +387,15 @@ class ParquetViewerApp(QMainWindow):
         
         # Auto-adjust column sizes only when requested (saves seconds of rendering lag!)
         if resize_columns:
-            self.tbl_grid.resizeColumnsToContents()
+            # Measure only the first 30 rows for initial column width sizing (huge rendering speedup!)
+            if sliced_table is not None and sliced_table.num_rows > 30:
+                temp_sliced = sliced_table.slice(0, 30)
+                self.grid_model.setTable(temp_sliced)
+                self.tbl_grid.resizeColumnsToContents()
+                self.grid_model.setTable(sliced_table)
+            else:
+                self.tbl_grid.resizeColumnsToContents()
+                
             for col in range(len(sliced_table.column_names)):
                 w = min(self.tbl_grid.columnWidth(col), 350)
                 self.tbl_grid.setColumnWidth(col, max(w, 80))
@@ -522,9 +555,16 @@ class ParquetViewerApp(QMainWindow):
             
     # --- Recent Files Cache Logic ---
     def add_recent_file(self, filepath: str):
-        if filepath in self.recent_files:
-            self.recent_files.remove(filepath)
-        self.recent_files.insert(0, filepath)
+        # Normalize slashes and case (Windows is case-insensitive)
+        normalized_filepath = os.path.abspath(filepath).replace('\\', '/')
+        
+        # Filter out any matching paths (case-insensitive check)
+        self.recent_files = [
+            p for p in self.recent_files 
+            if os.path.abspath(p).replace('\\', '/').lower() != normalized_filepath.lower()
+        ]
+        
+        self.recent_files.insert(0, normalized_filepath)
         self.recent_files = self.recent_files[:8]
         
         self.settings.setValue("recent_files", self.recent_files)
@@ -532,23 +572,26 @@ class ParquetViewerApp(QMainWindow):
         
     def update_recent_list_ui(self):
         self.list_recent.clear()
+        from PySide6.QtWidgets import QListWidgetItem
         for path in self.recent_files:
             base = os.path.basename(path)
-            self.list_recent.addItem(base)
-            items = self.list_recent.findItems(base, Qt.MatchFlag.MatchExactly)
-            if items:
-                items[0].setToolTip(path)
+            item = QListWidgetItem(base)
+            item.setToolTip(path)
+            self.list_recent.addItem(item)
                 
     def open_recent_file(self, item):
         path = item.toolTip()
-        if os.path.exists(path):
+        if path and os.path.exists(path):
             self.load_parquet_file(path)
         else:
             QMessageBox.warning(self, "File Not Found", f"The file no longer exists:\n{path}")
-            if path in self.recent_files:
-                self.recent_files.remove(path)
-                self.settings.setValue("recent_files", self.recent_files)
-                self.update_recent_list_ui()
+            norm_path_lower = os.path.abspath(path).replace('\\', '/').lower() if path else ""
+            self.recent_files = [
+                p for p in self.recent_files 
+                if os.path.abspath(p).replace('\\', '/').lower() != norm_path_lower
+            ]
+            self.settings.setValue("recent_files", self.recent_files)
+            self.update_recent_list_ui()
                 
     def clear_recent_files(self):
         self.recent_files.clear()

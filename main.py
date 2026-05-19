@@ -9,6 +9,14 @@ from PySide6.QtCore import Qt
 from gui.app import ParquetViewerApp
 
 def main():
+    # Set taskbar icon correctly on Windows by declaring a unique AppUserModelID
+    if sys.platform == 'win32':
+        import ctypes
+        try:
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("antigravity.parquetviewer.1.0")
+        except Exception:
+            pass
+
     # Set up High-DPI scaling attributes for modern high-resolution displays
     # (Note: PySide6/Qt6 handles many scaling features automatically, but we ensure standard behavior)
     os.environ["QT_AUTO_SCREEN_SCALE_FACTOR"] = "1"

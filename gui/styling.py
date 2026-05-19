@@ -32,6 +32,33 @@ class Theme:
     @staticmethod
     def get_style(is_dark: bool = True) -> str:
         t = DarkTheme if is_dark else LightTheme
+        import sys
+        import os
+        
+        # Determine the base directory for resources safely (handles PyInstaller ZIP packaging)
+        if getattr(sys, 'frozen', False):
+            meipass = getattr(sys, '_MEIPASS', '')
+            if meipass:
+                candidate1 = os.path.join(meipass, "gui")
+                candidate2 = os.path.join(meipass, "_internal", "gui")
+                if os.path.isdir(candidate1):
+                    base_dir = candidate1
+                elif os.path.isdir(candidate2):
+                    base_dir = candidate2
+                else:
+                    base_dir = meipass
+            else:
+                exe_dir = os.path.dirname(sys.executable)
+                candidate1 = os.path.join(exe_dir, "_internal", "gui")
+                candidate2 = os.path.join(exe_dir, "gui")
+                if os.path.isdir(candidate1):
+                    base_dir = candidate1
+                else:
+                    base_dir = candidate2
+        else:
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            
+        base_dir = base_dir.replace('\\', '/')
         
         return f"""
         /* Main Window and Dialogs */
@@ -273,12 +300,14 @@ class Theme:
             selection-color: {t.TEXT_PRIMARY};
         }}
         
-        /* Scrollbars */
+        /* ===================== Scrollbars ===================== */
+
+        /* --- Vertical Scrollbar --- */
         QScrollBar:vertical {{
             border: none;
             background: {t.BG_MAIN};
-            width: 10px;
-            margin: 0px;
+            width: 16px;
+            margin: 16px 0px 16px 0px;
         }}
         
         QScrollBar::handle:vertical {{
@@ -291,17 +320,56 @@ class Theme:
             background: {t.ACCENT_COLOR};
         }}
         
-        QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
-            border: none;
-            background: none;
-            height: 0px;
+        QScrollBar::sub-line:vertical {{
+            border: 1px solid {t.BORDER_COLOR};
+            background: {t.BG_INPUT};
+            height: 16px;
+            subcontrol-position: top;
+            subcontrol-origin: margin;
+            border-radius: 3px;
         }}
         
+        QScrollBar::sub-line:vertical:hover {{
+            background: {"#2e2e40" if is_dark else "#dde3ec"};
+            border-color: {t.ACCENT_COLOR};
+        }}
+        
+        QScrollBar::add-line:vertical {{
+            border: 1px solid {t.BORDER_COLOR};
+            background: {t.BG_INPUT};
+            height: 16px;
+            subcontrol-position: bottom;
+            subcontrol-origin: margin;
+            border-radius: 3px;
+        }}
+        
+        QScrollBar::add-line:vertical:hover {{
+            background: {"#2e2e40" if is_dark else "#dde3ec"};
+            border-color: {t.ACCENT_COLOR};
+        }}
+        
+        QScrollBar::up-arrow:vertical {{
+            width: 14px;
+            height: 14px;
+            image: url("{base_dir}/up_arrow.png");
+        }}
+        
+        QScrollBar::down-arrow:vertical {{
+            width: 14px;
+            height: 14px;
+            image: url("{base_dir}/down_arrow.png");
+        }}
+        
+        QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{
+            background: none;
+        }}
+
+        /* --- Horizontal Scrollbar --- */
         QScrollBar:horizontal {{
             border: none;
             background: {t.BG_MAIN};
-            height: 10px;
-            margin: 0px;
+            height: 16px;
+            margin: 0px 16px 0px 16px;
         }}
         
         QScrollBar::handle:horizontal {{
@@ -314,10 +382,48 @@ class Theme:
             background: {t.ACCENT_COLOR};
         }}
         
-        QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{
-            border: none;
+        QScrollBar::sub-line:horizontal {{
+            border: 1px solid {t.BORDER_COLOR};
+            background: {t.BG_INPUT};
+            width: 16px;
+            subcontrol-position: left;
+            subcontrol-origin: margin;
+            border-radius: 3px;
+        }}
+        
+        QScrollBar::sub-line:horizontal:hover {{
+            background: {"#2e2e40" if is_dark else "#dde3ec"};
+            border-color: {t.ACCENT_COLOR};
+        }}
+        
+        QScrollBar::add-line:horizontal {{
+            border: 1px solid {t.BORDER_COLOR};
+            background: {t.BG_INPUT};
+            width: 16px;
+            subcontrol-position: right;
+            subcontrol-origin: margin;
+            border-radius: 3px;
+        }}
+        
+        QScrollBar::add-line:horizontal:hover {{
+            background: {"#2e2e40" if is_dark else "#dde3ec"};
+            border-color: {t.ACCENT_COLOR};
+        }}
+        
+        QScrollBar::left-arrow:horizontal {{
+            width: 14px;
+            height: 14px;
+            image: url("{base_dir}/left_arrow.png");
+        }}
+        
+        QScrollBar::right-arrow:horizontal {{
+            width: 14px;
+            height: 14px;
+            image: url("{base_dir}/right_arrow.png");
+        }}
+        
+        QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {{
             background: none;
-            width: 0px;
         }}
         
         /* Group Boxes */
