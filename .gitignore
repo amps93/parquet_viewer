@@ -7,6 +7,11 @@ __pycache__/
 # C extensions
 *.so
 
+# Prevent ignoring binary files inside our final compiled dist/ folder
+!dist/**/*.pyd
+!dist/**/*.so
+
+
 # Distribution / packaging
 bin/
 build/
