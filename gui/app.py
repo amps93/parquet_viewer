@@ -34,8 +34,12 @@ class ParquetViewerApp(QMainWindow):
         # Clean invalid recent files
         self.recent_files = [f for f in self.recent_files if os.path.exists(f)]
         
+        # Theme configuration (persist last active theme)
+        self.is_dark_mode = self.settings.value("is_dark_mode", True, type=bool)
+        
         self.init_ui()
         self.apply_theme()
+        self.update_theme_button_ui()
         
     def init_ui(self):
         self.setWindowTitle("Antigravity Parquet View Studio (Lightweight)")
@@ -82,6 +86,11 @@ class ParquetViewerApp(QMainWindow):
         self.btn_gen_sample.clicked.connect(self.create_and_load_sample)
         header_layout.addWidget(self.btn_gen_sample)
         
+        self.btn_theme_toggle = QPushButton("🌙 Night Mode")
+        self.btn_theme_toggle.setToolTip("Toggle Light/Night Mode")
+        self.btn_theme_toggle.clicked.connect(self.toggle_theme)
+        header_layout.addWidget(self.btn_theme_toggle)
+        
         self.btn_help = QPushButton("?")
         self.btn_help.setToolTip("Show Help & Documentation")
         self.btn_help.setFixedWidth(30)
@@ -107,8 +116,8 @@ class ParquetViewerApp(QMainWindow):
         meta_layout.setSpacing(6)
         
         self.lbl_meta_name = QLabel("No file loaded")
+        self.lbl_meta_name.setObjectName("metaFileName")
         self.lbl_meta_name.setWordWrap(True)
-        self.lbl_meta_name.setStyleSheet("font-weight: bold; color: #00f0ff;")
         
         self.lbl_meta_size = QLabel("Size: --")
         self.lbl_meta_rows = QLabel("Rows: --")
@@ -210,7 +219,7 @@ class ParquetViewerApp(QMainWindow):
         pagination_layout.addWidget(self.btn_page_prev)
         
         self.lbl_pagination_info = QLabel("Page 0 of 0 (Showing 0 - 0 of 0 rows)")
-        self.lbl_pagination_info.setStyleSheet("color: #9da2b0; font-weight: 500;")
+        self.lbl_pagination_info.setObjectName("paginationInfo")
         pagination_layout.addWidget(self.lbl_pagination_info)
         
         self.btn_page_next = QPushButton(">")
@@ -247,11 +256,11 @@ class ParquetViewerApp(QMainWindow):
         
         # --- Footer Status Bar ---
         self.lbl_status_footer = QLabel("Ready. Please open a Parquet file to begin.")
-        self.lbl_status_footer.setStyleSheet("color: #9da2b0; font-size: 11px; padding: 2px;")
+        self.lbl_status_footer.setObjectName("statusFooter")
         main_layout.addWidget(self.lbl_status_footer)
         
     def apply_theme(self):
-        self.setStyleSheet(Theme.QSS)
+        self.setStyleSheet(Theme.get_style(self.is_dark_mode))
         
     def select_and_open_file(self):
         file_path, _ = QFileDialog.getOpenFileName(
@@ -572,3 +581,17 @@ class ParquetViewerApp(QMainWindow):
             "System requirement: Python 3.8+ with PySide6 and PyArrow."
         )
         QMessageBox.information(self, "App Documentation", help_text)
+        
+    def toggle_theme(self):
+        self.is_dark_mode = not self.is_dark_mode
+        self.settings.setValue("is_dark_mode", self.is_dark_mode)
+        self.apply_theme()
+        self.update_theme_button_ui()
+        
+    def update_theme_button_ui(self):
+        if self.is_dark_mode:
+            self.btn_theme_toggle.setText("🌙 Night Mode")
+            self.btn_theme_toggle.setToolTip("Switch to Light Mode")
+        else:
+            self.btn_theme_toggle.setText("☀️ Light Mode")
+            self.btn_theme_toggle.setToolTip("Switch to Night Mode")
