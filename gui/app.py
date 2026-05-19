@@ -291,7 +291,7 @@ class ParquetViewerApp(QMainWindow):
             
             # Update UI Panels
             self.update_meta_sidebar()
-            self.update_grid_view()
+            self.update_grid_view(resize_columns=True)
             
             self.btn_export_grid.setEnabled(True)
             self.lbl_status_footer.setText(f"Successfully loaded parquet file with {self.loader.metadata['row_count']:,} rows.")
@@ -338,7 +338,7 @@ class ParquetViewerApp(QMainWindow):
         self.lbl_meta_ver.setText(f"Format Version: {meta['format_version']}")
         self.lbl_meta_name.setToolTip(meta['filepath'])
         
-    def update_grid_view(self):
+    def update_grid_view(self, resize_columns: bool = False):
         if self.filtered_table is None or self.filtered_table.num_rows == 0:
             self.grid_model.setTable(None)
             self.lbl_pagination_info.setText("Page 0 of 0 (Showing 0 - 0 of 0 rows)")
@@ -360,11 +360,12 @@ class ParquetViewerApp(QMainWindow):
         sliced_table = self.filtered_table.slice(start_idx, end_idx - start_idx)
         self.grid_model.setTable(sliced_table)
         
-        # Auto-adjust column sizes
-        self.tbl_grid.resizeColumnsToContents()
-        for col in range(len(sliced_table.column_names)):
-            w = min(self.tbl_grid.columnWidth(col), 350)
-            self.tbl_grid.setColumnWidth(col, max(w, 80))
+        # Auto-adjust column sizes only when requested (saves seconds of rendering lag!)
+        if resize_columns:
+            self.tbl_grid.resizeColumnsToContents()
+            for col in range(len(sliced_table.column_names)):
+                w = min(self.tbl_grid.columnWidth(col), 350)
+                self.tbl_grid.setColumnWidth(col, max(w, 80))
             
         # Update Info text
         self.lbl_pagination_info.setText(
@@ -444,7 +445,7 @@ class ParquetViewerApp(QMainWindow):
             
             self.filtered_table = self.loader.table.filter(mask)
             self.current_page = 0
-            self.update_grid_view()
+            self.update_grid_view(resize_columns=True)
             self.lbl_status_footer.setText(f"Filter applied. Returned {self.filtered_table.num_rows:,} matching rows.")
         except Exception as e:
             QMessageBox.critical(self, "Filter Error", f"Could not apply filter:\n{str(e)}")
@@ -455,7 +456,7 @@ class ParquetViewerApp(QMainWindow):
         self.txt_filter_val.clear()
         self.filtered_table = self.loader.table
         self.current_page = 0
-        self.update_grid_view()
+        self.update_grid_view(resize_columns=True)
         self.lbl_status_footer.setText("Filter reset. Showing all rows.")
         
     def export_current_dataset(self):
@@ -511,7 +512,7 @@ class ParquetViewerApp(QMainWindow):
         try:
             self.page_size = int(size_str)
             self.current_page = 0
-            self.update_grid_view()
+            self.update_grid_view(resize_columns=True)
         except ValueError:
             pass
             
