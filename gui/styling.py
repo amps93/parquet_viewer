@@ -122,6 +122,13 @@ class Theme:
         border-color: #22222a;
     }}
     
+    /* Compact Navigation Buttons */
+    QPushButton#navButton {{
+        padding: 4px 2px;
+        font-size: 11px;
+        font-weight: bold;
+    }}
+    
     /* Primary (Accent) Button */
     QPushButton#primaryButton {{
         background: {ACCENT_GRADIENT};

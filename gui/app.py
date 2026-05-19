@@ -196,12 +196,14 @@ class ParquetViewerApp(QMainWindow):
         
         # Pagination controls
         self.btn_page_first = QPushButton("|<")
+        self.btn_page_first.setObjectName("navButton")
         self.btn_page_first.setToolTip("First Page")
         self.btn_page_first.setFixedWidth(32)
         self.btn_page_first.clicked.connect(self.page_first)
         pagination_layout.addWidget(self.btn_page_first)
         
         self.btn_page_prev = QPushButton("<")
+        self.btn_page_prev.setObjectName("navButton")
         self.btn_page_prev.setToolTip("Previous Page")
         self.btn_page_prev.setFixedWidth(32)
         self.btn_page_prev.clicked.connect(self.page_prev)
@@ -212,12 +214,14 @@ class ParquetViewerApp(QMainWindow):
         pagination_layout.addWidget(self.lbl_pagination_info)
         
         self.btn_page_next = QPushButton(">")
+        self.btn_page_next.setObjectName("navButton")
         self.btn_page_next.setToolTip("Next Page")
         self.btn_page_next.setFixedWidth(32)
         self.btn_page_next.clicked.connect(self.page_next)
         pagination_layout.addWidget(self.btn_page_next)
         
         self.btn_page_last = QPushButton(">|")
+        self.btn_page_last.setObjectName("navButton")
         self.btn_page_last.setToolTip("Last Page")
         self.btn_page_last.setFixedWidth(32)
         self.btn_page_last.clicked.connect(self.page_last)
