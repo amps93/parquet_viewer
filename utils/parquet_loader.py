@@ -21,7 +21,8 @@ class ParquetLoader:
             self.filepath = filepath
             
             # Read schema and metadata using pyarrow
-            pf = pq.ParquetFile(filepath)
+            # memory_map=True heavily speeds up reading large local files (zero-copy when possible)
+            pf = pq.ParquetFile(filepath, memory_map=True)
             self.metadata = {
                 "filename": os.path.basename(filepath),
                 "filepath": filepath,
@@ -61,15 +62,16 @@ class ParquetLoader:
             elif format_type == "parquet":
                 pq.write_table(table_to_export, save_path)
             elif format_type == "json":
-                # Convert rows to standard python dictionary and dump to JSON
-                pydict = table_to_export.to_pydict()
-                keys = list(pydict.keys())
-                num_rows = table_to_export.num_rows
+                # Limit to first 20,000 rows BEFORE converting to python dictionary 
+                # to prevent massive memory spikes on large tables
+                export_table = table_to_export.slice(0, 20000)
                 
-                # Limit to first 20,000 rows for JSON export to avoid memory bloat
-                export_rows = min(num_rows, 20000)
+                pydict = export_table.to_pydict()
+                keys = list(pydict.keys())
+                num_rows = export_table.num_rows
+                
                 rows = []
-                for i in range(export_rows):
+                for i in range(num_rows):
                     row = {k: pydict[k][i] for k in keys}
                     rows.append(row)
                     

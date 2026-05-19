@@ -396,12 +396,16 @@ class ParquetViewerApp(QMainWindow):
             col_type = field.type
             
             # String conversions and smart comparison conversions using pyarrow.compute
-            if op == "contains":
-                mask = pc.match_substring(column_data, val_str, ignore_case=True)
-            elif op == "starts with":
-                mask = pc.starts_with(column_data, val_str, ignore_case=True)
-            elif op == "ends with":
-                mask = pc.ends_with(column_data, val_str, ignore_case=True)
+            if op in ("contains", "starts with", "ends with"):
+                if not pa.types.is_string(col_type) and not pa.types.is_large_string(col_type):
+                    column_data = pc.cast(column_data, pa.string())
+                    
+                if op == "contains":
+                    mask = pc.match_substring(column_data, val_str, ignore_case=True)
+                elif op == "starts with":
+                    mask = pc.starts_with(column_data, val_str, ignore_case=True)
+                elif op == "ends with":
+                    mask = pc.ends_with(column_data, val_str, ignore_case=True)
             else:
                 # Convert comparison value to match dtype
                 if pa.types.is_integer(col_type) or pa.types.is_floating(col_type):
